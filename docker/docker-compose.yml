@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:latest
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - backend_network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: gnaro93@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: password
+    ports:
+      - "8080:80"
+    networks:
+      - backend_network
+    depends_on:
+      - db
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "1025:1025"   # SMTP port
+      - "8025:8025"   # Web UI port
+    networks:
+      - backend_network
+
+#  nodejs-app:
+#    image: node:latest
+#    container_name: nodejs_app
+#    working_dir: /usr/src/app
+#    volumes:
+#      - ../:/usr/src/app # Make sure your Node.js app is in the ./app directory
+#    command: sh -c "npm i -g @nestjs/cli && yarn && yarn start:dev"
+#    ports:
+#      - "4200:4200"
+#    depends_on:
+#      - db
+#    networks:
+#      - backend_network
+
+volumes:
+  db_data:
+
+networks:
+  backend_network:
+    driver: bridge
