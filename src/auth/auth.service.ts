@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service'; // Импортируем PrismaService
 import * as bcrypt from 'bcrypt';
+import { SignUpStepOneDto } from './auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -31,22 +32,48 @@ export class AuthService {
     );
   }
 
-  // Создаём пользователя в базе данных
-  async createUser({ email, password }) {
+  async createUserWithEmailAndPassword(signUpStepOneDto: SignUpStepOneDto) {
+    const { email, password, userType, businessType } = signUpStepOneDto;
+
+    // Проверка на существующего пользователя
+    const existingUser = await this.findUserByEmail(email);
+    if (existingUser) {
+      throw new BadRequestException('User with this email already exists');
+    }
+
+    // Хеширование пароля
     const hashedPassword = await bcrypt.hash(password, 10);
-    return this.prisma.user.create({
+
+    // Создание нового пользователя
+    const newUser = await this.prisma.user.create({
       data: {
         email,
         password: hashedPassword,
-        isVerified: false, // Если требуется, можно сразу добавить логику верификации
+        userType: userType,
+        businessType: userType === 'BUSINESS' ? businessType : null,
       },
+    });
+
+    return newUser;
+  }
+
+  // Метод для сохранения пользователя (если потребуется обновление после добавления данных)
+  async saveUser(user: any) {
+    return this.prisma.user.update({
+      where: { id: user.id },
+      data: user,
     });
   }
 
-  // Находим пользователя по email
   async findUserByEmail(email: string) {
     return this.prisma.user.findUnique({
       where: { email },
+    });
+  }
+
+  async findUserById(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
     });
   }
 }

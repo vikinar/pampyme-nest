@@ -14,10 +14,27 @@ datasource postgres {
 }
 
 model User {
-  id                String   @id @default(uuid())
-  email             String   @unique
-  password          String
-  isVerified        Boolean  @default(false)
-  verificationToken String?
-  createdAt         DateTime @default(now())
+  id              String       @id @default(uuid())
+  email           String       @unique
+  password        String
+  userType        UserType     @default(REGULAR) // Поле для типа пользователя
+  businessType    BusinessType?                  // Поле для бизнес-пользователей, опционально
+  firstName       String?                        // Поля для обычных пользователей
+  lastName        String?
+  phoneNumber     String?
+  companyName     String?                        // Поля для бизнес-пользователей
+  registrationNumber String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  isVerified   Boolean    @default(false)
+}
+
+enum UserType {
+  REGULAR
+  BUSINESS
+}
+
+enum BusinessType {
+  COMPANY
+  PROFESSIONAL
 }

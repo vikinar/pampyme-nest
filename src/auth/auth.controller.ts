@@ -18,8 +18,13 @@ import {
   ApiCookieAuth,
   ApiOperation,
 } from '@nestjs/swagger';
-import { SignUpDto, SignInDto } from './auth.dto';
-import { I18nLang, I18nService, logger } from 'nestjs-i18n';
+import {
+  SignInDto,
+  UserType,
+  SignUpStepOneDto,
+  SignUpStepTwoDto,
+} from './auth.dto';
+import { I18nLang, I18nService } from 'nestjs-i18n';
 
 @Controller('auth')
 @ApiTags('Auth') // Группируем маршруты под тегом Auth в документации Swagger
@@ -36,47 +41,93 @@ export class AuthController {
     return { translations };
   }
 
-  @Post('sign-up')
-  @ApiBody({ type: SignUpDto }) // Описание тела запроса
-  @ApiResponse({ status: 201, description: 'User registered successfully.' }) // Успешный ответ
-  @ApiResponse({ status: 400, description: 'User already exists.' }) // Ошибка при существующем пользователе
-  @ApiResponse({ status: 500, description: 'Internal Server Error.' }) // Общая ошибка сервера
-  async signUp(
-    @Body() signUpDto: SignUpDto,
+  @Post('sign-up/step1')
+  @ApiBody({ type: SignUpStepOneDto })
+  @ApiResponse({ status: 201, description: 'Step 1 completed successfully.' })
+  @ApiResponse({ status: 400, description: 'User already exists.' })
+  @ApiResponse({ status: 500, description: 'Internal Server Error.' })
+  async signUpStepOne(
+    @Body() signUpStepOneDto: SignUpStepOneDto,
     @Res() res: Response,
     @I18nLang() lang: string,
   ) {
     try {
-      // Проверяем, существует ли пользователь с таким email
       const existingUser = await this.authService.findUserByEmail(
-        signUpDto.email,
+        signUpStepOneDto.email,
       );
 
       if (existingUser) {
-        return res
-          .status(400)
-          .json({ error: this.i18n.t('common.error.user_exists', { lang }) });
+        return res.status(400).json({
+          error: {
+            message: this.i18n.t('common.error.user_exists', { lang }),
+          },
+        });
       }
 
-      // Создаём нового пользователя
-      const newUser = await this.authService.createUser(signUpDto);
+      // Создаём пользователя с базовыми данными
+      const tempUser =
+        await this.authService.createUserWithEmailAndPassword(signUpStepOneDto);
 
-      const accessToken = this.authService.generateAccessToken(
-        newUser.id,
-        newUser.email,
-      );
-      const refreshToken = this.authService.generateRefreshToken(newUser.id);
+      // Определяем тип пользователя и сохраняем его
+      tempUser.userType = signUpStepOneDto.userType;
+      if (signUpStepOneDto.userType === UserType.BUSINESS) {
+        tempUser.businessType = signUpStepOneDto.businessType;
+      }
 
-      // Сохраняем refresh token в куки
-      res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 604800000, // 7 дней
+      await this.authService.saveUser(tempUser);
+
+      return res.status(201).json({
+        success: {
+          data: this.i18n.t('common.success.user_registered', { lang }),
+        },
       });
-
-      return res.status(201).json({ success: 'Success!' });
     } catch (error) {
-      throw new InternalServerErrorException('Failed to register user.', error);
+      throw new InternalServerErrorException(
+        'Failed to complete step 1.',
+        error,
+      );
+    }
+  }
+
+  @Post('sign-up/step2')
+  @ApiBody({ type: SignUpStepTwoDto })
+  @ApiResponse({ status: 201, description: 'User registered successfully.' })
+  @ApiResponse({ status: 400, description: 'Step 1 not completed or invalid.' })
+  @ApiResponse({ status: 500, description: 'Internal Server Error.' })
+  async signUpStep2(
+    @Body() signUpStepTwoDto: SignUpStepTwoDto,
+    @Res() res: Response,
+    @I18nLang() lang: string,
+  ) {
+    try {
+      const user = await this.authService.findUserById(signUpStepTwoDto.userId);
+
+      if (!user) {
+        return res.status(400).json({
+          error: this.i18n.t('common.error.user_not_found', { lang }),
+        });
+      }
+
+      // В зависимости от типа пользователя собираем соответствующие данные
+      if (user.userType === UserType.REGULAR) {
+        user.firstName = signUpStepTwoDto.firstName;
+        user.lastName = signUpStepTwoDto.lastName;
+        user.phoneNumber = signUpStepTwoDto.phoneNumber;
+      } else if (user.userType === UserType.BUSINESS) {
+        user.companyName = signUpStepTwoDto.companyName;
+        user.registrationNumber = signUpStepTwoDto.registrationNumber;
+      }
+
+      await this.authService.saveUser(user);
+
+      return res.status(201).json({
+        success: this.i18n.t('common.success.user_registered', { lang }),
+      });
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Failed to complete step 2.',
+        error,
+      );
     }
   }
 

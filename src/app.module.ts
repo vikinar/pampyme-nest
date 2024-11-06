@@ -20,18 +20,15 @@ import { join } from 'path';
       isGlobal: true,
     }),
     I18nModule.forRootAsync({
-      useFactory: () => {
-        console.log('i18n Path:', join(__dirname, 'i18n/'));
-        return {
-          fallbackLanguage: 'ru',
-          includeSubfolders: true,
-          loader: I18nJsonLoader,
-          loaderOptions: {
-            path: join(__dirname, 'i18n/'),
-            watch: true,
-          },
-        };
-      },
+      useFactory: () => ({
+        fallbackLanguage: 'ru',
+        includeSubfolders: true,
+        loader: I18nJsonLoader,
+        loaderOptions: {
+          path: join(__dirname, 'i18n/'),
+          watch: true,
+        },
+      }),
       resolvers: [
         new QueryResolver(['lang', 'l']),
         new HeaderResolver(['Accept-Language']),
