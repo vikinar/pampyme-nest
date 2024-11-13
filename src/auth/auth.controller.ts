@@ -108,7 +108,6 @@ export class AuthController {
         });
       }
 
-      // В зависимости от типа пользователя собираем соответствующие данные
       if (user.userType === UserType.REGULAR) {
         user.firstName = signUpStepTwoDto.firstName;
         user.lastName = signUpStepTwoDto.lastName;
