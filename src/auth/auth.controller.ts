@@ -27,7 +27,7 @@ import {
 import { I18nLang, I18nService } from 'nestjs-i18n';
 
 @Controller('auth')
-@ApiTags('Auth') // Группируем маршруты под тегом Auth в документации Swagger
+@ApiTags('Auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
@@ -36,7 +36,7 @@ export class AuthController {
 
   @Get('all-translations')
   async getAllTranslations() {
-    const translations = await this.i18n.getTranslations();
+    const translations = this.i18n.getTranslations();
     console.log('Loaded translations:', translations);
     return { translations };
   }
@@ -132,7 +132,7 @@ export class AuthController {
 
   @Post('sign-in')
   @HttpCode(200)
-  @ApiBody({ type: SignInDto }) // Описание тела запроса
+  @ApiBody({ type: SignInDto })
   @ApiResponse({ status: 200, description: 'User signed in successfully.' })
   @ApiResponse({ status: 401, description: 'Invalid credentials.' })
   @ApiResponse({ status: 403, description: 'Forbidden access.' }) // Если доступ запрещён
@@ -195,19 +195,25 @@ export class AuthController {
   @ApiCookieAuth() // Указываем, что токен берется из cookie
   @ApiBody({
     description: 'Refresh token is sent in the cookie',
-  }) // Описываем, что отправляем
+  })
   @ApiResponse({
     status: 200,
     description: 'User signed in successfully.',
-  }) // Описываем, что получаем
+  })
   @ApiResponse({ status: 401, description: 'Refresh token not found.' })
   @ApiResponse({ status: 403, description: 'Invalid refresh token.' })
   @ApiResponse({ status: 500, description: 'Internal Server Error.' })
-  async refreshToken(@Req() req: Request, @Res() res: Response) {
+  async refreshToken(
+    @Req() req: Request,
+    @Res() res: Response,
+    @I18nLang() lang: string,
+  ) {
     const refreshToken = req.cookies['refreshToken'];
 
     if (!refreshToken) {
-      throw new UnauthorizedException('Refresh token not found');
+      throw new UnauthorizedException(
+        this.i18n.t('error.refresh_token_invalid', { lang }),
+      );
     }
 
     try {
@@ -224,9 +230,13 @@ export class AuthController {
       return res.json({ accessToken: newAccessToken });
     } catch (err: any) {
       if (err.name === 'JsonWebTokenError') {
-        throw new UnauthorizedException('Invalid refresh token');
+        throw new UnauthorizedException(
+          this.i18n.t('error.refresh_token_invalid', { lang }),
+        );
       }
-      throw new InternalServerErrorException('Failed to refresh token.');
+      throw new InternalServerErrorException(
+        this.i18n.t('error.refresh_token_invalid', { lang }),
+      );
     }
   }
 }

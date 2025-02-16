@@ -3,7 +3,7 @@
     "user_exists": "User already exists.",
     "invalid_credentials": "Invalid credentials.",
     "token_not_found": "Refresh token not found.",
-    "token_invalid": "Invalid refresh token."
+    "refresh_token_invalid": "Invalid refresh token."
   },
   "success": {
     "user_registered": "User registered successfully.",
